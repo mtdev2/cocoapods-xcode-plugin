@@ -10,8 +10,9 @@ Manage your dependencies, with minimal command line hack-fu
 - Installs documentation (from CocoaDocs) for the CocoaPods used in the open Xcode workspace
 - Supports using a custom path to your CocoaPods installation
 - Supports `$GEM_HOME` expansion, `$GEM_PATH` expansion, and `rvm` environments
+- Offline mode
 
-![Menu](https://github.com/kattrali/cocoadocs-xcode-plugin/raw/master/menu.png)
+![Menu](menu.png)
 
 
 ## Prerequisites
@@ -37,6 +38,11 @@ OR
 Run `rm -r ~/Library/Application\ Support/Developer/Shared/Xcode/Plug-ins/CocoaPods.xcplugin/`
 
 ## Usage
+
+### Offline mode
+
+In some situations, such as working under poor network conditions, you may want to run `pod` in
+offline mode. Toggle `Product > CocoaPods > Update and Install Offline Only` to enable offline mode.
 
 ### Custom GEM_PATH setting
 
@@ -71,7 +77,7 @@ Path expansion and command resolution occurs each time before a command is run. 
 
 Under most circumstances in an `rvm` environment the following custom `GEM_PATH` setting should be used:
 
-![Suitable rvm setting](https://github.com/kattrali/cocoadocs-xcode-plugin/raw/master/menu_rvm.png)
+![Suitable rvm setting](menu_rvm.png)
 
 NOTE: Behind the scenes, the `/bin` path element will be converted to `/wrapper` for rvm. If `.rvm` is not found in the expanded path, the `/bin` path element will remain unmodified.
 

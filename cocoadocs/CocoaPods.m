@@ -35,10 +35,10 @@
 
 @interface CocoaPods () <NSTextFieldDelegate>
 
-@property (nonatomic, strong) NSMenuItem* updatePodsNoRepoUpdateItem;
 @property (nonatomic, strong) NSMenuItem* installPodsItem;
 @property (nonatomic, strong) NSMenuItem* outdatedPodsItem;
 @property (nonatomic, strong) NSMenuItem* updatePodsItem;
+@property (nonatomic, strong) NSMenuItem* installUpdateOfflineItem;
 @property (nonatomic, strong) NSMenuItem* installDocsItem;
 @property (nonatomic, strong) NSMenuItem* pathItem;
 @property (nonatomic, strong) IBOutlet NSTextField* pathField;
@@ -51,6 +51,7 @@
 @implementation CocoaPods
 
 static NSString* const DMMCocoaPodsIntegrateWithDocsKey = @"DMMCocoaPodsIntegrateWithDocs";
+static NSString* const DMMCocoaPodsShouldInstallUpdateOfflineKey = @"DMMCocoaPodsShouldInstallUpdateOffline";
 static NSString* const DOCSET_ARCHIVE_FORMAT = @"http://cocoadocs.org/docsets/%@/docset.xar";
 static NSString* const GEM_EXECUTABLE = @"gem";
 static NSString* const GEM_PATH_DEFAULT = @"/usr/bin";
@@ -96,7 +97,7 @@ static NSString* const XAR_EXECUTABLE = @"/usr/bin/xar";
 
 - (BOOL)validateMenuItem:(NSMenuItem*)menuItem
 {
-    if ([menuItem isEqual:self.installPodsItem] || [menuItem isEqual:self.outdatedPodsItem] || [menuItem isEqual:self.updatePodsItem] || [menuItem isEqual:self.updatePodsNoRepoUpdateItem]) {
+    if ([menuItem isEqual:self.installPodsItem] || [menuItem isEqual:self.outdatedPodsItem] || [menuItem isEqual:self.updatePodsItem]) {
         return [[CCPProject projectForKeyWindow] hasPodfile];
     }
 
@@ -119,9 +120,10 @@ static NSString* const XAR_EXECUTABLE = @"/usr/bin/xar";
                                                           action:@selector(integratePods)
                                                    keyEquivalent:@""];
 
-        self.updatePodsNoRepoUpdateItem = [[NSMenuItem alloc] initWithTitle:@"Update Pods (Offline only)"
-                                                                     action:@selector(updatePodsNoRepoUpdate)
-                                                              keyEquivalent:@""];
+        self.installUpdateOfflineItem = [[NSMenuItem alloc] initWithTitle:@"Update and Install Offline Only"
+                                                                   action:@selector(toggleInstallUpdateOffline)
+                                                            keyEquivalent:@""];
+        self.installUpdateOfflineItem.state = [self shouldInstallUpdateOffline] ? NSOnState : NSOffState;
         self.outdatedPodsItem = [[NSMenuItem alloc] initWithTitle:@"Check for Outdated Pods"
                                                            action:@selector(checkForOutdatedPods)
                                                     keyEquivalent:@""];
@@ -151,9 +153,9 @@ static NSString* const XAR_EXECUTABLE = @"/usr/bin/xar";
 
         [self.pathItem setView:self.pathView];
 
-        [self.updatePodsNoRepoUpdateItem setTarget:self];
         [self.installDocsItem setTarget:self];
         [self.installPodsItem setTarget:self];
+        [self.installUpdateOfflineItem setTarget:self];
         [self.outdatedPodsItem setTarget:self];
         [self.updatePodsItem setTarget:self];
         [createPodfileItem setTarget:self];
@@ -163,7 +165,8 @@ static NSString* const XAR_EXECUTABLE = @"/usr/bin/xar";
         [[cocoaPodsMenu submenu] addItem:self.installPodsItem];
         [[cocoaPodsMenu submenu] addItem:self.outdatedPodsItem];
         [[cocoaPodsMenu submenu] addItem:self.updatePodsItem];
-        [[cocoaPodsMenu submenu] addItem:self.updatePodsNoRepoUpdateItem];
+        [[cocoaPodsMenu submenu] addItem:self.installUpdateOfflineItem];
+        [[cocoaPodsMenu submenu] addItem:[NSMenuItem separatorItem]];
         [[cocoaPodsMenu submenu] addItem:createPodfileItem];
         [[cocoaPodsMenu submenu] addItem:createPodspecItem];
         [[cocoaPodsMenu submenu] addItem:[NSMenuItem separatorItem]];
@@ -187,6 +190,11 @@ static NSString* const XAR_EXECUTABLE = @"/usr/bin/xar";
 - (void)toggleInstallDocsForPods
 {
     [self setShouldInstallDocsForPods:![self shouldInstallDocsForPods]];
+}
+
+- (void)toggleInstallUpdateOffline
+{
+    [self setShouldInstallUpdateOffline:![self shouldInstallUpdateOffline]];
 }
 
 - (void)createPodfile
@@ -225,38 +233,24 @@ static NSString* const XAR_EXECUTABLE = @"/usr/bin/xar";
 
 - (void)integratePods
 {
-    NSString* const CPFallbackPodPath = @"/usr/local/bin";
     CCPProject* project = [CCPProject projectForKeyWindow];
     BOOL isDir;
-    BOOL fileExists = [[NSFileManager defaultManager] fileExistsAtPath:project.workspacePath isDirectory:&isDir];
-    NSString* expandedGemPath = [CCPPathResolver stringByAdjustingGemPathForEnvironment:[self gemPath]];
-    NSString* resolvedCommand = [CCPPathResolver resolveCommand:POD_EXECUTABLE forPath:expandedGemPath];
-
-    if (resolvedCommand == nil) {
-        resolvedCommand = [CCPPathResolver resolveCommand:POD_EXECUTABLE forPath:CPFallbackPodPath];
-        if (resolvedCommand == nil) {
-            NSAlert* alert = [[NSAlert alloc] init];
-            [alert setAlertStyle:NSCriticalAlertStyle];
-            [alert setMessageText:RESOLVER_TITLE_TEXT];
-            [alert setInformativeText:[NSString stringWithFormat:RESOLVER_ERROR_FORMAT, POD_EXECUTABLE, expandedGemPath]];
-            [alert runModal];
-            return;
-        }
+    BOOL fileExists = [[NSFileManager defaultManager] fileExistsAtPath:project.workspacePath
+                                                           isDirectory:&isDir];
+    NSMutableArray* arguments = [@[@"install"] mutableCopy];
+    if ([self shouldInstallUpdateOffline]) {
+        [arguments addObject:@"--no-repo-update"];
     }
-
-    [CCPShellRunner runShellCommand:resolvedCommand
-                           withArgs:@[ @"install" ]
-                          directory:[CCPWorkspaceManager currentWorkspaceDirectoryPath]
-                         completion:^(NSTask* t) {
-                              if ([self shouldInstallDocsForPods])
-                                  [self installOrUpdateDocSetsForPods];
-                              // Only prompt if this is the first time
-                              if (!fileExists || !isDir) {
-                                  dispatch_async(dispatch_get_main_queue(), ^{
-                                      [self showReopenWorkspaceMessageForProject:project];
-                                  });
-                              }
-                         }];
+    [self runPodWithArguments:arguments completion:^(NSTask *t) {
+        if ([self shouldInstallDocsForPods])
+            [self installOrUpdateDocSetsForPods];
+        // Only prompt if this is the first time
+        if (!fileExists || !isDir) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self showReopenWorkspaceMessageForProject:project];
+            });
+        }
+    }];
 }
 
 - (void)showReopenWorkspaceMessageForProject:(CCPProject*)project
@@ -312,22 +306,25 @@ static NSString* const XAR_EXECUTABLE = @"/usr/bin/xar";
 
 - (void)checkForOutdatedPods
 {
-    [self runPodWithArguments:@[ @"outdated" ]];
+    NSMutableArray* arguments = [@[@"outdated"] mutableCopy];
+    if ([self shouldInstallUpdateOffline]) {
+        [arguments addObject:@"--no-repo-update"];
+    }
+    [self runPodWithArguments:arguments completion:NULL];
 }
 
 - (void)updatePods
 {
-    [self runPodWithArguments:@[ @"update" ]];
+    NSMutableArray* arguments = [@[@"update"] mutableCopy];
+    if ([self shouldInstallUpdateOffline]) {
+        [arguments addObject:@"--no-repo-update"];
+    }
+    [self runPodWithArguments:arguments completion:NULL];
 }
 
 - (void)installCocoaPods
 {
-    [self runPodWithArguments:@[ @"install", @"cocoapods" ]];
-}
-
-- (void)updatePodsNoRepoUpdate
-{
-    [self runPodWithArguments:@[ @"update", @"--no-repo-update" ]];
+    [self runPodWithArguments:@[ @"install", @"cocoapods" ] completion:NULL];
 }
 
 - (void)installOrUpdateDocSetsForPods
@@ -356,20 +353,28 @@ static NSString* const XAR_EXECUTABLE = @"/usr/bin/xar";
                          completion:nil];
 }
 
-- (void)runPodWithArguments:(NSArray*)args
+- (void)runPodWithArguments:(NSArray*)args completion:(void(^)(NSTask* t))completion
 {
+    NSString* const CPFallbackPodPath = @"/usr/local/bin";
     NSString* expandedGemPath = [CCPPathResolver stringByAdjustingGemPathForEnvironment:[self gemPath]];
     NSString* resolvedCommand = [CCPPathResolver resolveCommand:POD_EXECUTABLE forPath:expandedGemPath];
 
-    if (!resolvedCommand) {
-        [self showResolverErrorForExecutable:POD_EXECUTABLE expandedPath:expandedGemPath];
-        return;
+    if (resolvedCommand == nil) {
+        resolvedCommand = [CCPPathResolver resolveCommand:POD_EXECUTABLE forPath:CPFallbackPodPath];
+        if (resolvedCommand == nil) {
+            NSAlert* alert = [[NSAlert alloc] init];
+            [alert setAlertStyle:NSCriticalAlertStyle];
+            [alert setMessageText:RESOLVER_TITLE_TEXT];
+            [alert setInformativeText:[NSString stringWithFormat:RESOLVER_ERROR_FORMAT, POD_EXECUTABLE, expandedGemPath]];
+            [alert runModal];
+            return;
+        }
     }
 
     [CCPShellRunner runShellCommand:resolvedCommand
                            withArgs:args
                           directory:[CCPWorkspaceManager currentWorkspaceDirectoryPath]
-                         completion:nil];
+                         completion:completion];
 }
 
 - (void)showResolverErrorForExecutable:(NSString*)executable expandedPath:(NSString*)expandedPath
@@ -392,6 +397,18 @@ static NSString* const XAR_EXECUTABLE = @"/usr/bin/xar";
 {
     [[NSUserDefaults standardUserDefaults] setBool:enabled forKey:DMMCocoaPodsIntegrateWithDocsKey];
     self.installDocsItem.state = enabled ? NSOnState : NSOffState;
+}
+
+- (BOOL)shouldInstallUpdateOffline
+{
+    return [[NSUserDefaults standardUserDefaults] boolForKey:DMMCocoaPodsShouldInstallUpdateOfflineKey];
+}
+
+- (void)setShouldInstallUpdateOffline:(BOOL)shouldBeOffline
+{
+    [[NSUserDefaults standardUserDefaults] setBool:shouldBeOffline
+                                            forKey:DMMCocoaPodsShouldInstallUpdateOfflineKey];
+    self.installUpdateOfflineItem.state = shouldBeOffline ? NSOnState : NSOffState;
 }
 
 - (void)updateGemPath:(NSString*)string
