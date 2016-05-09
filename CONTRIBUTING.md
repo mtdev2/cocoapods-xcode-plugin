@@ -3,7 +3,7 @@ Thank you for your interest in making a contribution to the cocoapods Xcode plug
 ## Style
 
 1. The plugin source uses
-[WebKit](http://www.webkit.org/coding/coding-style.html) style formatting. When in doubt, check existing source for hints. Using a tool like `clang-format` also recommended.
+[LLVM](http://llvm.org/docs/CodingStandards.html) style formatting. When in doubt, check existing source for hints. Using a tool like `clang-format` also recommended.
 
 2. Keep the header formatting consistent with the LICENSE file
 
