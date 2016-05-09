@@ -51,11 +51,10 @@
         NSString* podspecFileName = [name stringByAppendingString:@".podspec"];
         NSString* podspecPath = [path stringByAppendingPathComponent:podspecFileName];
         NSString* podspecParentPath = [[path stringByDeletingLastPathComponent] stringByAppendingPathComponent:podspecFileName];
-        if ([[NSFileManager defaultManager] fileExistsAtPath:podspecPath]) {
-            _podspecPath = podspecPath;
-        }
-        else if ([[NSFileManager defaultManager] fileExistsAtPath:podspecParentPath]) {
+        if ([[NSFileManager defaultManager] fileExistsAtPath:podspecParentPath]) {
             _podspecPath = podspecParentPath;
+        } else {
+            _podspecPath = podspecPath;
         }
         _directoryPath = path;
 
@@ -131,8 +130,12 @@
     [podspecFile appendString:@"\n\nend"];
 
     // Write Podspec File
-    [[NSFileManager defaultManager] createFileAtPath:self.podspecPath contents:nil attributes:nil];
-    [podspecFile writeToFile:self.podspecPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
+    BOOL created = [[NSFileManager defaultManager] createFileAtPath:self.podspecPath
+                                                           contents:nil
+                                                         attributes:nil];
+    if (created)
+        [podspecFile writeToFile:self.podspecPath atomically:YES
+                        encoding:NSUTF8StringEncoding error:nil];
 }
 
 - (BOOL)containsFileWithName:(NSString*)fileName
