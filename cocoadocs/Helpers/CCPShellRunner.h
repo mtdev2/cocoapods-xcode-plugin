@@ -25,6 +25,9 @@
 
 @interface CCPShellRunner : NSObject
 
-+ (void)runShellCommand:(NSString*)command withArgs:(NSArray*)args directory:(NSString*)directory completion:(void (^)(NSTask* t))completion;
++ (void)runShellCommand:(NSString *)command
+               withArgs:(NSArray *)args
+              directory:(NSString *)directory
+             completion:(void (^)(NSTask *t))completion;
 
 @end

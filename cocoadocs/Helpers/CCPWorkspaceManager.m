@@ -21,56 +21,55 @@
 //  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 //  IN THE SOFTWARE.
 
-#import "CCPWorkspaceManager.h"
 #import "CCPProject.h"
+#import "CCPWorkspaceManager.h"
 
 @implementation CCPWorkspaceManager
 
-static NSString* const PODFILE = @"Podfile";
+static NSString *const PODFILE = @"Podfile";
 
-+ (NSArray*)installedPodNamesInCurrentWorkspace
-{
-    NSMutableArray* names = [NSMutableArray new];
-    id workspace = [self workspaceForKeyWindow];
++ (NSArray *)installedPodNamesInCurrentWorkspace {
+  NSMutableArray *names = [NSMutableArray new];
+  id workspace = [self workspaceForKeyWindow];
 
-    id contextManager = [workspace valueForKey:@"_runContextManager"];
-    for (id scheme in [contextManager valueForKey:@"runContexts"]) {
-        NSString* schemeName = [scheme valueForKey:@"name"];
-        if ([schemeName hasPrefix:@"Pods-"]) {
-            [names addObject:[schemeName stringByReplacingOccurrencesOfString:@"Pods-" withString:@""]];
-        }
+  id contextManager = [workspace valueForKey:@"_runContextManager"];
+  for (id scheme in [contextManager valueForKey:@"runContexts"]) {
+    NSString *schemeName = [scheme valueForKey:@"name"];
+    if ([schemeName hasPrefix:@"Pods-"]) {
+      [names addObject:[schemeName stringByReplacingOccurrencesOfString:@"Pods-"
+                                                             withString:@""]];
     }
-    return names;
+  }
+  return names;
 }
 
-+ (NSString*)currentWorkspaceDirectoryPath
-{
-    return [self directoryPathForWorkspace:[self workspaceForKeyWindow]];
++ (NSString *)currentWorkspaceDirectoryPath {
+  return [self directoryPathForWorkspace:[self workspaceForKeyWindow]];
 }
 
-+ (NSString*)directoryPathForWorkspace:(id)workspace
-{
-    NSString* workspacePath = [[workspace valueForKey:@"representingFilePath"] valueForKey:@"_pathString"];
-    return [workspacePath stringByDeletingLastPathComponent];
++ (NSString *)directoryPathForWorkspace:(id)workspace {
+  NSString *workspacePath = [[workspace valueForKey:@"representingFilePath"]
+      valueForKey:@"_pathString"];
+  return [workspacePath stringByDeletingLastPathComponent];
 }
 
 #pragma mark - Private
 
-+ (id)workspaceForKeyWindow
-{
-    return [self workspaceForWindow:[NSApp keyWindow]];
++ (id)workspaceForKeyWindow {
+  return [self workspaceForWindow:[NSApp keyWindow]];
 }
 
-+ (id)workspaceForWindow:(NSWindow*)window
-{
-    NSArray* workspaceWindowControllers = [NSClassFromString(@"IDEWorkspaceWindowController") valueForKey:@"workspaceWindowControllers"];
++ (id)workspaceForWindow:(NSWindow *)window {
+  NSArray *workspaceWindowControllers =
+      [NSClassFromString(@"IDEWorkspaceWindowController")
+          valueForKey:@"workspaceWindowControllers"];
 
-    for (id controller in workspaceWindowControllers) {
-        if ([[controller valueForKey:@"window"] isEqual:window]) {
-            return [controller valueForKey:@"_workspace"];
-        }
+  for (id controller in workspaceWindowControllers) {
+    if ([[controller valueForKey:@"window"] isEqual:window]) {
+      return [controller valueForKey:@"_workspace"];
     }
-    return nil;
+  }
+  return nil;
 }
 
 @end

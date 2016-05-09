@@ -21,36 +21,39 @@
 //  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 //  IN THE SOFTWARE.
 
-#import <AppKit/AppKit.h>
-#import "CCPShellRunner.h"
 #import "CCPRunOperation.h"
+#import "CCPShellRunner.h"
+#import <AppKit/AppKit.h>
 
 @implementation CCPShellRunner
 
-+ (void)runShellCommand:(NSString*)command withArgs:(NSArray*)args directory:(NSString*)directory completion:(void (^)(NSTask* t))completion
-{
-    static NSOperationQueue* operationQueue;
-    if (operationQueue == nil) {
-        operationQueue = [NSOperationQueue new];
-    }
++ (void)runShellCommand:(NSString *)command
+               withArgs:(NSArray *)args
+              directory:(NSString *)directory
+             completion:(void (^)(NSTask *t))completion {
+  static NSOperationQueue *operationQueue;
+  if (operationQueue == nil) {
+    operationQueue = [NSOperationQueue new];
+  }
 
-    NSTask* task = [NSTask new];
+  NSTask *task = [NSTask new];
 
-    NSMutableDictionary* environment = [[[NSProcessInfo processInfo] environment] mutableCopy];
-    environment[@"LC_ALL"] = @"en_US.UTF-8";
-    environment[@"COCOAPODS_DISABLE_STATS"] = @"1";
-    [task setEnvironment:environment];
+  NSMutableDictionary *environment =
+      [[[NSProcessInfo processInfo] environment] mutableCopy];
+  environment[@"LC_ALL"] = @"en_US.UTF-8";
+  environment[@"COCOAPODS_DISABLE_STATS"] = @"1";
+  [task setEnvironment:environment];
 
-    task.currentDirectoryPath = directory;
-    task.launchPath = command;
-    task.arguments = args;
+  task.currentDirectoryPath = directory;
+  task.launchPath = command;
+  task.arguments = args;
 
-    CCPRunOperation* operation = [[CCPRunOperation alloc] initWithTask:task];
-    operation.completionBlock = ^{
-        if (completion)
-            completion(task);
-    };
-    [operationQueue addOperation:operation];
+  CCPRunOperation *operation = [[CCPRunOperation alloc] initWithTask:task];
+  operation.completionBlock = ^{
+    if (completion)
+      completion(task);
+  };
+  [operationQueue addOperation:operation];
 }
 
 @end

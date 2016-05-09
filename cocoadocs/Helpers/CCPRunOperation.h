@@ -23,6 +23,6 @@
 
 @interface CCPRunOperation : NSOperation
 
-- (id)initWithTask:(NSTask*)task;
+- (id)initWithTask:(NSTask *)task;
 
 @end

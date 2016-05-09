@@ -23,22 +23,22 @@
 
 @interface CCPProject : NSObject
 
-@property (nonatomic, copy, readonly) NSString* directoryPath;
-@property (nonatomic, copy, readonly) NSString* podspecPath;
-@property (nonatomic, copy, readonly) NSString* podfilePath;
-@property (nonatomic, copy, readonly) NSString* projectName;
-@property (nonatomic, copy, readonly) NSDictionary* infoDictionary;
-@property (nonatomic, readonly) NSString* workspacePath;
+@property(nonatomic, copy, readonly) NSString *directoryPath;
+@property(nonatomic, copy, readonly) NSString *podspecPath;
+@property(nonatomic, copy, readonly) NSString *podfilePath;
+@property(nonatomic, copy, readonly) NSString *projectName;
+@property(nonatomic, copy, readonly) NSDictionary *infoDictionary;
+@property(nonatomic, readonly) NSString *workspacePath;
 
 + (instancetype)projectForKeyWindow;
 
-- (id)initWithName:(NSString*)name path:(NSString*)path;
+- (id)initWithName:(NSString *)name path:(NSString *)path;
 
-- (void)createPodspecFromTemplate:(NSString*)_template;
+- (void)createPodspecFromTemplate:(NSString *)_template;
 
 - (BOOL)hasPodfile;
 - (BOOL)hasPodspecFile;
 
-- (BOOL)containsFileWithName:(NSString*)fileName;
+- (BOOL)containsFileWithName:(NSString *)fileName;
 
 @end

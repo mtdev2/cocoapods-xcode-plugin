@@ -33,11 +33,11 @@
  *
  *  @return resolved path
  */
-+ (NSString*)resolveCommand:(NSString*)command forPath:(NSString*)path;
++ (NSString *)resolveCommand:(NSString *)command forPath:(NSString *)path;
 
-+ (NSString*)stringByAdjustingGemPathForEnvironment:(NSString*)path;
-+ (NSString*)stringByAdjustingRvmBinPath:(NSString*)path;
-+ (NSString*)stringByExpandingGemHomeInPath:(NSString*)path;
-+ (NSString*)stringByExpandingGemPathInPath:(NSString*)path;
++ (NSString *)stringByAdjustingGemPathForEnvironment:(NSString *)path;
++ (NSString *)stringByAdjustingRvmBinPath:(NSString *)path;
++ (NSString *)stringByExpandingGemHomeInPath:(NSString *)path;
++ (NSString *)stringByExpandingGemPathInPath:(NSString *)path;
 
 @end

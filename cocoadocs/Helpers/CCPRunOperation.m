@@ -24,195 +24,207 @@
 #import "CCPRunOperation.h"
 
 @interface CCPRunOperation () {
-    BOOL isExecuting;
-    BOOL isFinished;
+  BOOL isExecuting;
+  BOOL isFinished;
 }
 
-@property (retain) CCPXCodeConsole* xcodeConsole;
+@property(retain) CCPXCodeConsole *xcodeConsole;
 
-@property (retain) NSTask* task;
-@property (retain) id taskStandardOutDataAvailableObserver;
-@property (retain) id taskStandardErrorDataAvailableObserver;
-@property (retain) id taskTerminationObserver;
+@property(retain) NSTask *task;
+@property(retain) id taskStandardOutDataAvailableObserver;
+@property(retain) id taskStandardErrorDataAvailableObserver;
+@property(retain) id taskTerminationObserver;
 
 @end
 
 @implementation CCPRunOperation
 
-- (id)initWithTask:(NSTask*)task
-{
-    self = [super init];
-    if (self) {
-        self.xcodeConsole = [CCPXCodeConsole consoleForKeyWindow];
-        self.task = task;
-    }
-    return self;
+- (id)initWithTask:(NSTask *)task {
+  self = [super init];
+  if (self) {
+    self.xcodeConsole = [CCPXCodeConsole consoleForKeyWindow];
+    self.task = task;
+  }
+  return self;
 }
 
-- (BOOL)isExecuting
-{
-    return isExecuting;
+- (BOOL)isExecuting {
+  return isExecuting;
 }
 
-- (void)setIsExecuting:(BOOL)_isExecuting
-{
-    [self willChangeValueForKey:@"isExecuting"];
-    isExecuting = _isExecuting;
-    [self didChangeValueForKey:@"isExecuting"];
+- (void)setIsExecuting:(BOOL)_isExecuting {
+  [self willChangeValueForKey:@"isExecuting"];
+  isExecuting = _isExecuting;
+  [self didChangeValueForKey:@"isExecuting"];
 }
 
-- (BOOL)isFinished
-{
-    return isFinished;
+- (BOOL)isFinished {
+  return isFinished;
 }
 
-- (void)setIsFinished:(BOOL)_isFinished
-{
-    [self willChangeValueForKey:@"isFinished"];
-    isFinished = _isFinished;
-    [self didChangeValueForKey:@"isFinished"];
+- (void)setIsFinished:(BOOL)_isFinished {
+  [self willChangeValueForKey:@"isFinished"];
+  isFinished = _isFinished;
+  [self didChangeValueForKey:@"isFinished"];
 }
 
-- (void)start
-{
-    if (self.isCancelled) {
-        self.isFinished = YES;
-        return;
-    }
+- (void)start {
+  if (self.isCancelled) {
+    self.isFinished = YES;
+    return;
+  }
 
-    if (!NSThread.isMainThread) {
-        [self performSelector:@selector(start) onThread:NSThread.mainThread withObject:nil waitUntilDone:NO];
-        return;
-    }
+  if (!NSThread.isMainThread) {
+    [self performSelector:@selector(start)
+                 onThread:NSThread.mainThread
+               withObject:nil
+            waitUntilDone:NO];
+    return;
+  }
 
-    self.isExecuting = YES;
-    [self main];
+  self.isExecuting = YES;
+  [self main];
 }
 
-- (void)main
-{
-    if (self.isCancelled) {
-        self.isExecuting = NO;
-        self.isFinished = YES;
-    }
-    else {
-        [self runOperation];
-    }
+- (void)main {
+  if (self.isCancelled) {
+    self.isExecuting = NO;
+    self.isFinished = YES;
+  } else {
+    [self runOperation];
+  }
 }
 
 #pragma mark - NSTask
 
-- (void)runOperation
-{
-    @try {
-        NSPipe* standardOutputPipe = NSPipe.pipe;
-        self.task.standardOutput = standardOutputPipe;
-        NSPipe* standardErrorPipe = NSPipe.pipe;
-        self.task.standardError = standardErrorPipe;
-        NSFileHandle* standardOutputFileHandle = standardOutputPipe.fileHandleForReading;
-        NSFileHandle* standardErrorFileHandle = standardErrorPipe.fileHandleForReading;
+- (void)runOperation {
+  @try {
+    NSPipe *standardOutputPipe = NSPipe.pipe;
+    self.task.standardOutput = standardOutputPipe;
+    NSPipe *standardErrorPipe = NSPipe.pipe;
+    self.task.standardError = standardErrorPipe;
+    NSFileHandle *standardOutputFileHandle =
+        standardOutputPipe.fileHandleForReading;
+    NSFileHandle *standardErrorFileHandle =
+        standardErrorPipe.fileHandleForReading;
 
-        __block NSMutableString* standardOutputBuffer = [NSMutableString string];
-        __block NSMutableString* standardErrorBuffer = [NSMutableString string];
+    __block NSMutableString *standardOutputBuffer = [NSMutableString string];
+    __block NSMutableString *standardErrorBuffer = [NSMutableString string];
 
-        self.taskStandardOutDataAvailableObserver = [NSNotificationCenter.defaultCenter addObserverForName:NSFileHandleDataAvailableNotification
-                                                                                                    object:standardOutputFileHandle
-                                                                                                     queue:NSOperationQueue.mainQueue
-                                                                                                usingBlock:^(NSNotification* notification) {
-                                                                                                    NSFileHandle *fileHandle = notification.object;
-                                                                                                    NSString *data = [[NSString alloc] initWithData:fileHandle.availableData encoding:NSUTF8StringEncoding];
-                                                                                                    if (data.length > 0) {
-                                                                                                        [standardOutputBuffer appendString:data];
-                                                                                                        [fileHandle waitForDataInBackgroundAndNotify];
-                                                                                                        standardOutputBuffer = [self writePipeBuffer:standardOutputBuffer];
-                                                                                                    } else {
-                                                                                                        [self appendLine:standardOutputBuffer];
-                                                                                                        [NSNotificationCenter.defaultCenter removeObserver:self.taskStandardOutDataAvailableObserver];
-                                                                                                        self.taskStandardOutDataAvailableObserver = nil;
-                                                                                                        [self checkAndSetFinished];
-                                                                                                    }
-                                                                                                }];
+    self.taskStandardOutDataAvailableObserver =
+        [NSNotificationCenter.defaultCenter
+            addObserverForName:NSFileHandleDataAvailableNotification
+                        object:standardOutputFileHandle
+                         queue:NSOperationQueue.mainQueue
+                    usingBlock:^(NSNotification *notification) {
+                      NSFileHandle *fileHandle = notification.object;
+                      NSString *data = [[NSString alloc]
+                          initWithData:fileHandle.availableData
+                              encoding:NSUTF8StringEncoding];
+                      if (data.length > 0) {
+                        [standardOutputBuffer appendString:data];
+                        [fileHandle waitForDataInBackgroundAndNotify];
+                        standardOutputBuffer =
+                            [self writePipeBuffer:standardOutputBuffer];
+                      } else {
+                        [self appendLine:standardOutputBuffer];
+                        [NSNotificationCenter.defaultCenter
+                            removeObserver:
+                                self.taskStandardOutDataAvailableObserver];
+                        self.taskStandardOutDataAvailableObserver = nil;
+                        [self checkAndSetFinished];
+                      }
+                    }];
 
-        self.taskStandardErrorDataAvailableObserver = [NSNotificationCenter.defaultCenter addObserverForName:NSFileHandleDataAvailableNotification
-                                                                                                      object:standardErrorFileHandle
-                                                                                                       queue:NSOperationQueue.mainQueue
-                                                                                                  usingBlock:^(NSNotification* notification) {
-                                                                                                      NSFileHandle *fileHandle = notification.object;
-                                                                                                      NSString *data = [[NSString alloc] initWithData:fileHandle.availableData encoding:NSUTF8StringEncoding];
-                                                                                                      if (data.length > 0) {
-                                                                                                          [standardErrorBuffer appendString:data];
-                                                                                                          [fileHandle waitForDataInBackgroundAndNotify];
-                                                                                                          standardErrorBuffer = [self writePipeBuffer:standardErrorBuffer];
-                                                                                                      } else {
-                                                                                                          [self appendLine:standardErrorBuffer];
-                                                                                                          [NSNotificationCenter.defaultCenter removeObserver:self.taskStandardErrorDataAvailableObserver];
-                                                                                                          self.taskStandardErrorDataAvailableObserver = nil;
-                                                                                                          [self checkAndSetFinished];
-                                                                                                      }
-                                                                                                  }];
+    self.taskStandardErrorDataAvailableObserver =
+        [NSNotificationCenter.defaultCenter
+            addObserverForName:NSFileHandleDataAvailableNotification
+                        object:standardErrorFileHandle
+                         queue:NSOperationQueue.mainQueue
+                    usingBlock:^(NSNotification *notification) {
+                      NSFileHandle *fileHandle = notification.object;
+                      NSString *data = [[NSString alloc]
+                          initWithData:fileHandle.availableData
+                              encoding:NSUTF8StringEncoding];
+                      if (data.length > 0) {
+                        [standardErrorBuffer appendString:data];
+                        [fileHandle waitForDataInBackgroundAndNotify];
+                        standardErrorBuffer =
+                            [self writePipeBuffer:standardErrorBuffer];
+                      } else {
+                        [self appendLine:standardErrorBuffer];
+                        [NSNotificationCenter.defaultCenter
+                            removeObserver:
+                                self.taskStandardErrorDataAvailableObserver];
+                        self.taskStandardErrorDataAvailableObserver = nil;
+                        [self checkAndSetFinished];
+                      }
+                    }];
 
-        self.taskTerminationObserver = [NSNotificationCenter.defaultCenter addObserverForName:NSTaskDidTerminateNotification
-                                                                                       object:self.task
-                                                                                        queue:NSOperationQueue.mainQueue
-                                                                                   usingBlock:^(NSNotification* notification) {
-                                                                                       [NSNotificationCenter.defaultCenter removeObserver:self.taskTerminationObserver];
-                                                                                       self.taskTerminationObserver = nil;
-                                                                                       self.task = nil;
-                                                                                       [self checkAndSetFinished];
-                                                                                   }];
+    self.taskTerminationObserver = [NSNotificationCenter.defaultCenter
+        addObserverForName:NSTaskDidTerminateNotification
+                    object:self.task
+                     queue:NSOperationQueue.mainQueue
+                usingBlock:^(NSNotification *notification) {
+                  [NSNotificationCenter.defaultCenter
+                      removeObserver:self.taskTerminationObserver];
+                  self.taskTerminationObserver = nil;
+                  self.task = nil;
+                  [self checkAndSetFinished];
+                }];
 
-        [standardOutputFileHandle waitForDataInBackgroundAndNotify];
-        [standardErrorFileHandle waitForDataInBackgroundAndNotify];
+    [standardOutputFileHandle waitForDataInBackgroundAndNotify];
+    [standardErrorFileHandle waitForDataInBackgroundAndNotify];
 
-        [self.xcodeConsole appendText:[NSString stringWithFormat:@"%@ %@\n\n", self.task.launchPath, [self.task.arguments componentsJoinedByString:@" "]]];
-        [self.task launch];
-    }
-    @catch (NSException* exception)
-    {
-        [self.xcodeConsole appendText:exception.description color:NSColor.redColor];
-        [self.xcodeConsole appendText:@"\n"];
-        self.isExecuting = NO;
-        self.isFinished = YES;
-    }
+    [self.xcodeConsole
+        appendText:[NSString
+                       stringWithFormat:@"%@ %@\n\n", self.task.launchPath,
+                                        [self.task.arguments
+                                            componentsJoinedByString:@" "]]];
+    [self.task launch];
+  } @catch (NSException *exception) {
+    [self.xcodeConsole appendText:exception.description color:NSColor.redColor];
+    [self.xcodeConsole appendText:@"\n"];
+    self.isExecuting = NO;
+    self.isFinished = YES;
+  }
 }
 
-- (NSMutableString*)writePipeBuffer:(NSMutableString*)buffer
-{
-    NSArray* lines = [buffer componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet];
-    if (lines.count > 1) {
-        for (int i = 0; i < lines.count - 1; i++) {
-            NSString* line = lines[i];
-            [self appendLine:line];
-        }
-        return [lines[lines.count - 1] mutableCopy];
+- (NSMutableString *)writePipeBuffer:(NSMutableString *)buffer {
+  NSArray *lines = [buffer
+      componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet];
+  if (lines.count > 1) {
+    for (int i = 0; i < lines.count - 1; i++) {
+      NSString *line = lines[i];
+      [self appendLine:line];
     }
-    return buffer;
+    return [lines[lines.count - 1] mutableCopy];
+  }
+  return buffer;
 }
 
-- (void)appendLine:(NSString*)line
-{
-    NSColor* color;
+- (void)appendLine:(NSString *)line {
+  NSColor *color;
 
-    if ([line hasPrefix:@"ERROR"])
-        color = NSColor.redColor;
-    else if ([line hasPrefix:@"WARNING"])
-        color = NSColor.orangeColor;
-    else if ([line hasPrefix:@"DEBUG"])
-        color = NSColor.grayColor;
-    else if ([line hasPrefix:@"INFO"])
-        color = [NSColor colorWithDeviceRed:0.0 green:0.5 blue:0.0 alpha:1.0];
+  if ([line hasPrefix:@"ERROR"])
+    color = NSColor.redColor;
+  else if ([line hasPrefix:@"WARNING"])
+    color = NSColor.orangeColor;
+  else if ([line hasPrefix:@"DEBUG"])
+    color = NSColor.grayColor;
+  else if ([line hasPrefix:@"INFO"])
+    color = [NSColor colorWithDeviceRed:0.0 green:0.5 blue:0.0 alpha:1.0];
 
-    [self.xcodeConsole appendText:[line stringByAppendingString:@"\n"] color:color];
+  [self.xcodeConsole appendText:[line stringByAppendingString:@"\n"]
+                          color:color];
 }
 
-- (void)checkAndSetFinished
-{
-    if (self.taskStandardOutDataAvailableObserver == nil
-        && self.taskStandardErrorDataAvailableObserver == nil
-        && self.task == nil) {
-        self.isExecuting = NO;
-        self.isFinished = YES;
-    }
+- (void)checkAndSetFinished {
+  if (self.taskStandardOutDataAvailableObserver == nil &&
+      self.taskStandardErrorDataAvailableObserver == nil && self.task == nil) {
+    self.isExecuting = NO;
+    self.isFinished = YES;
+  }
 }
 
 @end

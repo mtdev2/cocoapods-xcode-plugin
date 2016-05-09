@@ -28,120 +28,130 @@
 
 @implementation CCPProject
 
-+ (instancetype)projectForKeyWindow
-{
-    id workspace = [CCPWorkspaceManager workspaceForKeyWindow];
++ (instancetype)projectForKeyWindow {
+  id workspace = [CCPWorkspaceManager workspaceForKeyWindow];
 
-    id contextManager = [workspace valueForKey:@"_runContextManager"];
-    for (id scheme in [contextManager valueForKey:@"runContexts"]) {
-        NSString* schemeName = [scheme valueForKey:@"name"];
-        if (![schemeName hasPrefix:@"Pods-"]) {
-            NSString* path = [CCPWorkspaceManager directoryPathForWorkspace:workspace];
-            return [[CCPProject alloc] initWithName:schemeName path:path];
-        }
+  id contextManager = [workspace valueForKey:@"_runContextManager"];
+  for (id scheme in [contextManager valueForKey:@"runContexts"]) {
+    NSString *schemeName = [scheme valueForKey:@"name"];
+    if (![schemeName hasPrefix:@"Pods-"]) {
+      NSString *path =
+          [CCPWorkspaceManager directoryPathForWorkspace:workspace];
+      return [[CCPProject alloc] initWithName:schemeName path:path];
     }
+  }
 
-    return nil;
+  return nil;
 }
 
-- (id)initWithName:(NSString*)name path:(NSString*)path
-{
-    if (self = [self init]) {
-        _projectName = name;
-        NSString* podspecFileName = [name stringByAppendingString:@".podspec"];
-        NSString* podspecPath = [path stringByAppendingPathComponent:podspecFileName];
-        NSString* podspecParentPath = [[path stringByDeletingLastPathComponent] stringByAppendingPathComponent:podspecFileName];
-        if ([[NSFileManager defaultManager] fileExistsAtPath:podspecParentPath]) {
-            _podspecPath = podspecParentPath;
-        } else {
-            _podspecPath = podspecPath;
-        }
-        _directoryPath = path;
-
-        NSString* infoPath = [path stringByAppendingPathComponent:[NSString stringWithFormat:@"%@/%@-Info.plist", _projectName, _projectName]];
-
-        _infoDictionary = [NSDictionary dictionaryWithContentsOfFile:infoPath];
-        _podfilePath = [path stringByAppendingPathComponent:@"Podfile"];
+- (id)initWithName:(NSString *)name path:(NSString *)path {
+  if (self = [self init]) {
+    _projectName = name;
+    NSString *podspecFileName = [name stringByAppendingString:@".podspec"];
+    NSString *podspecPath =
+        [path stringByAppendingPathComponent:podspecFileName];
+    NSString *podspecParentPath = [[path stringByDeletingLastPathComponent]
+        stringByAppendingPathComponent:podspecFileName];
+    if ([[NSFileManager defaultManager] fileExistsAtPath:podspecParentPath]) {
+      _podspecPath = podspecParentPath;
+    } else {
+      _podspecPath = podspecPath;
     }
+    _directoryPath = path;
 
-    return self;
+    NSString *infoPath = [path
+        stringByAppendingPathComponent:[NSString
+                                           stringWithFormat:@"%@/%@-Info.plist",
+                                                            _projectName,
+                                                            _projectName]];
+
+    _infoDictionary = [NSDictionary dictionaryWithContentsOfFile:infoPath];
+    _podfilePath = [path stringByAppendingPathComponent:@"Podfile"];
+  }
+
+  return self;
 }
 
-- (NSString*)workspacePath
-{
-    return [NSString stringWithFormat:@"%@/%@.xcworkspace", self.directoryPath, self.projectName];
+- (NSString *)workspacePath {
+  return [NSString stringWithFormat:@"%@/%@.xcworkspace", self.directoryPath,
+                                    self.projectName];
 }
 
-- (BOOL)hasPodspecFile
-{
-    return [[NSFileManager defaultManager] fileExistsAtPath:self.podspecPath];
+- (BOOL)hasPodspecFile {
+  return [[NSFileManager defaultManager] fileExistsAtPath:self.podspecPath];
 }
 
-- (BOOL)hasPodfile
-{
-    return [[NSFileManager defaultManager] fileExistsAtPath:self.podfilePath];
+- (BOOL)hasPodfile {
+  return [[NSFileManager defaultManager] fileExistsAtPath:self.podfilePath];
 }
 
-- (void)createPodspecFromTemplate:(NSString*)_template
-{
-    NSMutableString* podspecFile = _template.mutableCopy;
-    NSRange range;
-    range.location = 0;
+- (void)createPodspecFromTemplate:(NSString *)_template {
+  NSMutableString *podspecFile = _template.mutableCopy;
+  NSRange range;
+  range.location = 0;
 
+  range.length = podspecFile.length;
+  [podspecFile replaceOccurrencesOfString:@"<Project Name>"
+                               withString:self.projectName
+                                  options:NSLiteralSearch
+                                    range:range];
+
+  NSString *version = self.infoDictionary[@"CFBundleShortVersionString"];
+  if (version) {
     range.length = podspecFile.length;
-    [podspecFile replaceOccurrencesOfString:@"<Project Name>"
-                                 withString:self.projectName
+    [podspecFile replaceOccurrencesOfString:@"<Project Version>"
+                                 withString:version
                                     options:NSLiteralSearch
                                       range:range];
+  }
 
-    NSString* version = self.infoDictionary[@"CFBundleShortVersionString"];
-    if (version) {
-        range.length = podspecFile.length;
-        [podspecFile replaceOccurrencesOfString:@"<Project Version>"
-                                     withString:version
-                                        options:NSLiteralSearch
-                                          range:range];
+  range.length = podspecFile.length;
+  [podspecFile replaceOccurrencesOfString:@"'<"
+                               withString:@"'<#"
+                                  options:NSLiteralSearch
+                                    range:range];
+
+  range.length = podspecFile.length;
+  [podspecFile replaceOccurrencesOfString:@">'"
+                               withString:@"#>'"
+                                  options:NSLiteralSearch
+                                    range:range];
+
+  // Reading dependencies
+  NSString *podfileContent =
+      [NSString stringWithContentsOfFile:self.podfilePath
+                                encoding:NSUTF8StringEncoding
+                                   error:nil];
+  NSArray *fileLines = [podfileContent componentsSeparatedByString:@"\n"];
+
+  for (NSString *tmp in fileLines) {
+    NSString *line = [tmp
+        stringByTrimmingCharactersInSet:[NSCharacterSet
+                                            whitespaceAndNewlineCharacterSet]];
+
+    if ([line rangeOfString:@"pod "].location == 0) {
+      [podspecFile appendFormat:@"\n  s.dependencies =\t%@", line];
     }
+  }
 
-    range.length = podspecFile.length;
-    [podspecFile replaceOccurrencesOfString:@"'<"
-                                 withString:@"'<#"
-                                    options:NSLiteralSearch
-                                      range:range];
+  [podspecFile appendString:@"\n\nend"];
 
-    range.length = podspecFile.length;
-    [podspecFile replaceOccurrencesOfString:@">'"
-                                 withString:@"#>'"
-                                    options:NSLiteralSearch
-                                      range:range];
-
-    // Reading dependencies
-    NSString* podfileContent = [NSString stringWithContentsOfFile:self.podfilePath encoding:NSUTF8StringEncoding error:nil];
-    NSArray* fileLines = [podfileContent componentsSeparatedByString:@"\n"];
-
-    for (NSString* tmp in fileLines) {
-        NSString* line = [tmp stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-
-        if ([line rangeOfString:@"pod "].location == 0) {
-            [podspecFile appendFormat:@"\n  s.dependencies =\t%@", line];
-        }
-    }
-
-    [podspecFile appendString:@"\n\nend"];
-
-    // Write Podspec File
-    BOOL created = [[NSFileManager defaultManager] createFileAtPath:self.podspecPath
-                                                           contents:nil
-                                                         attributes:nil];
-    if (created)
-        [podspecFile writeToFile:self.podspecPath atomically:YES
-                        encoding:NSUTF8StringEncoding error:nil];
+  // Write Podspec File
+  BOOL created =
+      [[NSFileManager defaultManager] createFileAtPath:self.podspecPath
+                                              contents:nil
+                                            attributes:nil];
+  if (created)
+    [podspecFile writeToFile:self.podspecPath
+                  atomically:YES
+                    encoding:NSUTF8StringEncoding
+                       error:nil];
 }
 
-- (BOOL)containsFileWithName:(NSString*)fileName
-{
-    NSString* filePath = [self.directoryPath stringByAppendingPathComponent:fileName];
-    return [[NSFileManager defaultManager] fileExistsAtPath:filePath];
+- (BOOL)containsFileWithName:(NSString *)fileName {
+  NSString *filePath =
+      [self.directoryPath stringByAppendingPathComponent:fileName];
+  return [[NSFileManager defaultManager] fileExistsAtPath:filePath];
 }
 
 @end
