@@ -1,6 +1,10 @@
 # CocoaPods for Xcode
 
-Manage your dependencies, with minimal command line hack-fu
+![project deprecated](https://img.shields.io/badge/project%20status-deprecated-red.svg)
+
+This project is deprecated in favor of [Editor Extensions](https://developer.apple.com/videos/play/wwdc2016/414/) support in Xcode 8+.
+
+Manage your dependencies, with minimal command line hack-fu.
 
 ## Features
 
